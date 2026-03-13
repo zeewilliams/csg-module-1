@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cyber Study Group — Module 1: Network Threat Analysis</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0e14;
+  --bg2:#0f1520;
+  --bg3:#141c2b;
+  --bg4:#1a2235;
+  --accent:#00ff88;
+  --accent2:#00c8ff;
+  --accent3:#ff4d6d;
+  --accent4:#ffaa00;
+  --text:#e2e8f0;
+  --text2:#8899aa;
+  --text3:#556678;
+  --border:#1e2d42;
+  --border2:#243448;
+  --green:#00ff88;
+  --red:#ff4d6d;
+  --yellow:#ffaa00;
+  --blue:#00c8ff;
+  --radius:8px;
+  --radius-lg:12px;
+  --font:'Courier New',Courier,monospace;
+  --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100vh;overflow-x:hidden;}
+
+/* scanline overlay */
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,0.015) 2px,rgba(0,255,136,0.015) 4px);pointer-events:none;z-index:999;}
+
+/* ── Header ── */
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;font-family:var(--font);}
+.logo-text{font-size:15px;font-weight:700;color:var(--text);letter-spacing:.02em;}
+.logo-sub{font-size:11px;color:var(--accent);font-family:var(--font);letter-spacing:.08em;}
+.hud{display:flex;align-items:center;gap:16px;}
+.hud-item{text-align:center;}
+.hud-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;font-family:var(--font);}
+.hud-val{font-size:18px;font-weight:700;font-family:var(--font);color:var(--accent);}
+.timer-display{font-family:var(--font);font-size:15px;font-weight:700;background:var(--bg3);border:1px solid var(--border2);padding:5px 14px;border-radius:var(--radius);color:var(--accent);}
+.timer-display.warn{color:var(--yellow);border-color:var(--yellow);}
+.timer-display.danger{color:var(--red);border-color:var(--red);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+/* ── Progress Bar ── */
+.progress-wrap{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;}
+.progress-label{font-size:11px;color:var(--text3);font-family:var(--font);letter-spacing:.06em;margin-bottom:8px;}
+.parts-track{display:flex;gap:6px;align-items:center;}
+.part-node{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;cursor:pointer;}
+.part-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--font);color:var(--text3);background:var(--bg3);transition:all .2s;position:relative;}
+.part-dot.done{background:var(--accent);border-color:var(--accent);color:#000;}
+.part-dot.active{border-color:var(--accent2);color:var(--accent2);box-shadow:0 0 12px rgba(0,200,255,.4);}
+.part-dot.locked{opacity:.4;cursor:not-allowed;}
+.part-dot.done::after{content:'✓';font-size:13px;}
+.part-line{flex:1;height:2px;background:var(--border2);border-radius:2px;position:relative;overflow:hidden;}
+.part-line.done{background:var(--accent);}
+.part-name{font-size:10px;color:var(--text3);font-family:var(--font);text-align:center;letter-spacing:.04em;}
+.part-name.active{color:var(--accent2);}
+.part-name.done{color:var(--accent);}
+
+/* ── Main ── */
+.main{max-width:960px;margin:0 auto;padding:28px 20px 80px;}
+
+/* ── Part Header ── */
+.part-header{margin-bottom:24px;}
+.part-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font);letter-spacing:.08em;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-bottom:10px;}
+.tag-green{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25);}
+.tag-blue{background:rgba(0,200,255,.12);color:var(--blue);border:1px solid rgba(0,200,255,.25);}
+.tag-yellow{background:rgba(255,170,0,.12);color:var(--yellow);border:1px solid rgba(255,170,0,.25);}
+.tag-red{background:rgba(255,77,109,.12);color:var(--red);border:1px solid rgba(255,77,109,.25);}
+.tag-purple{background:rgba(160,100,255,.12);color:#a064ff;border:1px solid rgba(160,100,255,.25);}
+.part-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;font-family:var(--font-ui);}
+.part-desc{font-size:14px;color:var(--text2);line-height:1.7;}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px;}
+.card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;font-family:var(--font);margin-bottom:10px;}
+
+/* ── Terminal Log ── */
+.terminal{background:#060a0f;border:1px solid var(--border2);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px;}
+.term-bar{background:#0d1117;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.term-dots{display:flex;gap:5px;}
+.td{width:10px;height:10px;border-radius:50%;}
+.td-r{background:#ff5f57;}
+.td-y{background:#febc2e;}
+.td-g{background:#28c840;}
+.term-title{font-size:11px;color:#556678;font-family:var(--font);}
+.term-body{padding:12px 16px;max-height:280px;overflow-y:auto;font-size:12px;line-height:2.1;font-family:var(--font);color:#8899aa;}
+.term-body::-webkit-scrollbar{width:4px;}
+.term-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.log-row{display:flex;gap:10px;align-items:flex-start;padding:1px 6px;border-radius:4px;cursor:pointer;transition:background .1s;}
+.log-row:hover{background:rgba(255,255,255,.04);}
+.log-row.selected{background:rgba(0,200,255,.1);}
+.log-row.highlighted{background:rgba(255,77,109,.08);}
+.l-ts{color:#3d5166;white-space:nowrap;flex-shrink:0;}
+.l-host{flex-shrink:0;width:90px;font-weight:700;}
+.hc-dns{color:#79c0ff;}
+.hc-auth{color:#d2a8ff;}
+.hc-fw{color:#56d364;}
+.hc-db{color:#ffa657;}
+.hc-ext{color:#ff7b72;}
+.l-lvl{flex-shrink:0;width:50px;text-align:center;font-size:11px;padding:1px 4px;border-radius:3px;}
+.lv-info{background:rgba(86,211,100,.15);color:#56d364;}
+.lv-warn{background:rgba(255,170,0,.15);color:#ffaa00;}
+.lv-crit{background:rgba(255,77,109,.25);color:#ff7b72;font-weight:700;}
+.l-msg{flex:1;color:#cdd9e5;}
+.l-msg.bad{color:#ff7b72;}
+.inspector{font-size:12px;font-family:var(--font);padding:8px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);margin-bottom:14px;color:var(--text3);min-height:34px;line-height:1.5;}
+
+/* ── Network SVG ── */
+.net-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px;}
+
+/* ── Timeline ── */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.tl-item{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-left:2px solid var(--border2);margin-left:14px;padding-left:18px;position:relative;cursor:pointer;}
+.tl-item::before{content:'';position:absolute;left:-6px;top:14px;width:10px;height:10px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);}
+.tl-item.sel::before{background:var(--accent2);border-color:var(--accent2);}
+.tl-item.correct-tl::before{background:var(--green);border-color:var(--green);}
+.tl-item.wrong-tl::before{background:var(--red);border-color:var(--red);}
+.tl-time{font-size:11px;font-family:var(--font);color:var(--accent);white-space:nowrap;padding-top:2px;flex-shrink:0;width:60px;}
+.tl-body{flex:1;}
+.tl-event{font-size:13px;color:var(--text);font-weight:500;}
+.tl-detail{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.5;}
+
+/* ── Options ── */
+.options{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.opt{display:flex;align-items:flex-start;gap:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 16px;cursor:pointer;transition:border-color .15s,background .15s;}
+.opt:hover{border-color:var(--accent2);background:var(--bg4);}
+.opt.selected{border-color:var(--accent2);background:rgba(0,200,255,.07);}
+.opt.correct{border-color:var(--green);background:rgba(0,255,136,.07);}
+.opt.wrong{border-color:var(--red);background:rgba(255,77,109,.07);}
+.opt-key{width:26px;height:26px;border-radius:6px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--font);color:var(--text3);flex-shrink:0;}
+.opt.selected .opt-key{border-color:var(--accent2);color:var(--accent2);}
+.opt.correct .opt-key{border-color:var(--green);color:var(--green);}
+.opt.wrong .opt-key{border-color:var(--red);color:var(--red);}
+.opt-text{font-size:13px;color:var(--text);line-height:1.55;padding-top:3px;}
+
+/* ── Checklist ── */
+.checklist{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.check-item{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 16px;cursor:pointer;transition:all .15s;}
+.check-item:hover{border-color:var(--accent2);}
+.check-item.checked{border-color:var(--green);background:rgba(0,255,136,.06);}
+.check-item.wrong-check{border-color:var(--red);background:rgba(255,77,109,.06);}
+.check-box{width:20px;height:20px;border-radius:4px;border:1px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;}
+.check-item.checked .check-box{background:var(--green);border-color:var(--green);color:#000;}
+.check-item.wrong-check .check-box{background:var(--red);border-color:var(--red);color:#fff;}
+.check-text{font-size:13px;color:var(--text);line-height:1.5;}
+
+/* ── Textarea ── */
+.ir-textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:14px;font-size:13px;font-family:var(--font);color:var(--text);line-height:1.7;resize:vertical;min-height:160px;outline:none;transition:border-color .15s;}
+.ir-textarea:focus{border-color:var(--accent2);}
+.ir-template{font-size:12px;color:var(--text3);font-family:var(--font);background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;line-height:1.9;}
+.ir-field{color:var(--accent);}
+
+/* ── Buttons ── */
+.btn{font-size:13px;font-family:var(--font-ui);font-weight:600;padding:9px 20px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text);transition:all .12s;letter-spacing:.02em;}
+.btn:hover{background:var(--bg4);border-color:var(--border);}
+.btn:active{transform:scale(.97);}
+.btn-accent{background:var(--accent);color:#000;border-color:var(--accent);}
+.btn-accent:hover{background:#00e87a;border-color:#00e87a;}
+.btn-blue{background:var(--accent2);color:#000;border-color:var(--accent2);}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2);}
+.action-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+.sel-info{font-size:12px;color:var(--text3);font-family:var(--font);font-style:italic;}
+
+/* ── Result ── */
+.result{border-radius:var(--radius-lg);padding:16px 20px;margin-top:16px;line-height:1.7;}
+.result-ok{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.3);}
+.result-fail{background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.3);}
+.result-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.result-ok .result-title{color:var(--green);}
+.result-fail .result-title{color:var(--red);}
+.result-body{font-size:13px;color:var(--text2);line-height:1.75;}
+.result-body strong{color:var(--text);}
+
+/* ── Next Part Banner ── */
+.next-banner{display:none;background:linear-gradient(135deg,rgba(0,255,136,.08),rgba(0,200,255,.08));border:1px solid rgba(0,255,136,.25);border-radius:var(--radius-lg);padding:16px 20px;margin-top:16px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.next-banner.show{display:flex;}
+.next-text{font-size:14px;color:var(--text);font-weight:500;}
+.next-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+
+/* ── Hint ── */
+.hint-box{background:rgba(255,170,0,.07);border-left:3px solid var(--yellow);border-radius:0 var(--radius) var(--radius) 0;padding:10px 16px;font-size:13px;color:#ffcc55;margin-top:12px;line-height:1.65;}
+
+/* ── Complete Screen ── */
+.complete-screen{display:none;text-align:center;padding:48px 24px;}
+.complete-screen.show{display:block;}
+.complete-icon{font-size:64px;margin-bottom:16px;}
+.complete-title{font-size:28px;font-weight:700;color:var(--accent);font-family:var(--font);margin-bottom:8px;letter-spacing:.04em;}
+.complete-sub{font-size:15px;color:var(--text2);margin-bottom:24px;line-height:1.7;}
+.score-final{font-size:48px;font-weight:700;font-family:var(--font);color:var(--accent2);margin-bottom:4px;}
+.score-max{font-size:14px;color:var(--text3);font-family:var(--font);margin-bottom:32px;}
+.badges-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;}
+.earn-badge{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:14px 20px;text-align:center;min-width:120px;}
+.earn-icon{font-size:28px;margin-bottom:6px;}
+.earn-label{font-size:11px;color:var(--text3);font-family:var(--font);text-transform:uppercase;letter-spacing:.06em;}
+.earn-name{font-size:13px;color:var(--text);font-weight:600;margin-top:2px;}
+
+/* ── Divider ── */
+.divider{height:1px;background:var(--border);margin:18px 0;}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .header{padding:10px 14px;}
+  .main{padding:18px 12px 60px;}
+  .hud{gap:10px;}
+  .part-name{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">CSG</div>
+    <div>
+      <div class="logo-text">Cyber Study Group</div>
+      <div class="logo-sub">// MODULE 1 — NETWORK THREAT ANALYSIS</div>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="hud-item">
+      <div class="hud-label">Score</div>
+      <div class="hud-val" id="score">0</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Part</div>
+      <div class="hud-val" id="part-hud">1/5</div>
+    </div>
+    <div class="timer-display" id="timer">05:00</div>
+  </div>
+</header>
+
+<!-- Progress Track -->
+<div class="progress-wrap">
+  <div class="progress-label">// MODULE PROGRESS</div>
+  <div class="parts-track" id="parts-track">
+    <div class="part-node" onclick="tryNav(1)">
+      <div class="part-dot active" id="dot-1">1</div>
+      <div class="part-name active" id="pname-1">Recon</div>
+    </div>
+    <div class="part-line" id="line-1"></div>
+    <div class="part-node" onclick="tryNav(2)">
+      <div class="part-dot locked" id="dot-2">2</div>
+      <div class="part-name" id="pname-2">Timeline</div>
+    </div>
+    <div class="part-line" id="line-2"></div>
+    <div class="part-node" onclick="tryNav(3)">
+      <div class="part-dot locked" id="dot-3">3</div>
+      <div class="part-name" id="pname-3">IOC Hunt</div>
+    </div>
+    <div class="part-line" id="line-3"></div>
+    <div class="part-node" onclick="tryNav(4)">
+      <div class="part-dot locked" id="dot-4">4</div>
+      <div class="part-name" id="pname-4">Remediate</div>
+    </div>
+    <div class="part-line" id="line-4"></div>
+    <div class="part-node" onclick="tryNav(5)">
+      <div class="part-dot locked" id="dot-5">5</div>
+      <div class="part-name" id="pname-5">IR Report</div>
+    </div>
+  </div>
+</div>
+
+<main class="main">
+
+  <!-- ════════════════════════════════════════════
+       PART 1 — Recon: Identify the Compromised Host
+  ════════════════════════════════════════════ -->
+  <div id="part-1">
+    <div class="part-header">
+      <span class="part-tag tag-green">Part 1 of 5 &nbsp;·&nbsp; 🟢 Beginner</span>
+      <div class="part-title">Identify the Compromised Host</div>
+      <div class="part-desc">It's 02:47 UTC. Your SIEM has flagged unusual activity on CORP-NET. Review the live log feed below, determine which host is behaving maliciously, and submit your identification.</div>
+    </div>
+
+    <div class="terminal">
+      <div class="term-bar">
+        <div class="term-dots"><div class="td td-r"></div><div class="td td-y"></div><div class="td td-g"></div></div>
+        <span class="term-title">CORP-NET / siem-feed.log — 02:41–02:45 UTC</span>
+        <span class="part-tag tag-red" style="font-size:10px;padding:2px 8px;">5 anomalies</span>
+      </div>
+      <div class="term-body" id="p1-log"></div>
+    </div>
+    <div class="inspector" id="p1-inspector">Click any log entry to inspect it.</div>
+
+    <div class="card">
+      <div class="card-title">// Select the compromised host</div>
+      <div class="options" id="p1-opts">
+        <div class="opt" id="p1-o1" onclick="p1Select('dns')">
+          <div class="opt-key">A</div>
+          <div class="opt-text"><strong>DNS-SERVER</strong> — 10.0.0.53 — Name resolution service</div>
+        </div>
+        <div class="opt" id="p1-o2" onclick="p1Select('auth')">
+          <div class="opt-key">B</div>
+          <div class="opt-text"><strong>AUTH-SERVER</strong> — 10.0.0.12 — LDAP / Single sign-on</div>
+        </div>
+        <div class="opt" id="p1-o3" onclick="p1Select('fw')">
+          <div class="opt-key">C</div>
+          <div class="opt-text"><strong>FIREWALL</strong> — 10.0.0.1 — Perimeter enforcement</div>
+        </div>
+        <div class="opt" id="p1-o4" onclick="p1Select('db')">
+          <div class="opt-key">D</div>
+          <div class="opt-text"><strong>DB-SERVER</strong> — 10.0.0.88 — MySQL backend</div>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-accent" onclick="p1Submit()">Submit Answer</button>
+        <button class="btn btn-ghost" onclick="showHint(1)">Hint (−25 pts)</button>
+        <span class="sel-info" id="p1-sel">No selection.</span>
+      </div>
+      <div id="p1-hint"></div>
+      <div id="p1-result"></div>
+      <div class="next-banner" id="p1-next">
+        <div><div class="next-text">Part 1 complete — well done.</div><div class="next-sub">Part 2 unlocked: Reconstruct the attack timeline.</div></div>
+        <button class="btn btn-blue" onclick="goTo(2)">Continue to Part 2 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       PART 2 — Timeline Reconstruction
+  ════════════════════════════════════════════ -->
+  <div id="part-2" style="display:none;">
+    <div class="part-header">
+      <span class="part-tag tag-blue">Part 2 of 5 &nbsp;·&nbsp; 🟡 Easy</span>
+      <div class="part-title">Reconstruct the Attack Timeline</div>
+      <div class="part-desc">Now that you've identified DNS-SERVER as compromised, you need to establish a precise sequence of events. Drag the timeline events into the correct chronological order — the sequence matters for your incident report.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Place events in the correct order — select 1 through 5</div>
+      <div class="timeline" id="p2-timeline"></div>
+      <div class="divider"></div>
+      <div class="action-row">
+        <button class="btn btn-accent" onclick="p2Submit()">Submit Timeline</button>
+        <button class="btn btn-ghost" onclick="showHint(2)">Hint (−25 pts)</button>
+        <span class="sel-info" id="p2-sel">Select events in order (click 1st → 5th).</span>
+      </div>
+      <div id="p2-hint"></div>
+      <div id="p2-result"></div>
+      <div class="next-banner" id="p2-next">
+        <div><div class="next-text">Timeline confirmed.</div><div class="next-sub">Part 3 unlocked: Hunt for Indicators of Compromise.</div></div>
+        <button class="btn btn-blue" onclick="goTo(3)">Continue to Part 3 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       PART 3 — IOC Identification
+  ════════════════════════════════════════════ -->
+  <div id="part-3" style="display:none;">
+    <div class="part-header">
+      <span class="part-tag tag-yellow">Part 3 of 5 &nbsp;·&nbsp; 🟠 Intermediate</span>
+      <div class="part-title">Identify the Attack Type &amp; IOCs</div>
+      <div class="part-desc">With the timeline established, you must now classify the attack and extract all Indicators of Compromise (IOCs). Select the correct attack classification, then check every IOC that applies to this incident. Multiple correct answers required.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Q1 — What attack technique was used against DNS-SERVER?</div>
+      <div class="options" id="p3-opts">
+        <div class="opt" id="p3-o1" onclick="p3Select('a')">
+          <div class="opt-key">A</div>
+          <div class="opt-text"><strong>DNS Amplification</strong> — Using open resolvers to flood a target with large DNS responses</div>
+        </div>
+        <div class="opt" id="p3-o2" onclick="p3Select('b')">
+          <div class="opt-key">B</div>
+          <div class="opt-text"><strong>DNS Cache Poisoning</strong> — Injecting forged records into the resolver cache to redirect traffic</div>
+        </div>
+        <div class="opt" id="p3-o3" onclick="p3Select('c')">
+          <div class="opt-key">C</div>
+          <div class="opt-text"><strong>DNS Tunneling</strong> — Encoding data inside DNS queries to exfiltrate information covertly</div>
+        </div>
+        <div class="opt" id="p3-o4" onclick="p3Select('d')">
+          <div class="opt-key">D</div>
+          <div class="opt-text"><strong>BGP Hijacking</strong> — Rerouting internet traffic by announcing false routes via border gateway protocol</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Q2 — Select ALL Indicators of Compromise (IOCs) from this incident</div>
+      <div class="checklist" id="p3-iocs"></div>
+      <div class="action-row">
+        <button class="btn btn-accent" onclick="p3Submit()">Submit Analysis</button>
+        <button class="btn btn-ghost" onclick="showHint(3)">Hint (−25 pts)</button>
+        <span class="sel-info" id="p3-sel">Select attack type and all IOCs.</span>
+      </div>
+      <div id="p3-hint"></div>
+      <div id="p3-result"></div>
+      <div class="next-banner" id="p3-next">
+        <div><div class="next-text">Attack classified. IOCs documented.</div><div class="next-sub">Part 4 unlocked: Choose the correct remediation steps.</div></div>
+        <button class="btn btn-blue" onclick="goTo(4)">Continue to Part 4 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       PART 4 — Remediation
+  ════════════════════════════════════════════ -->
+  <div id="part-4" style="display:none;">
+    <div class="part-header">
+      <span class="part-tag tag-red">Part 4 of 5 &nbsp;·&nbsp; 🔴 Hard</span>
+      <div class="part-title">Execute the Correct Remediation</div>
+      <div class="part-desc">The attack is confirmed. You now have authority to act. Some remediation steps below are correct — others are ineffective or will cause additional harm to the network. Select every step that should be performed, and avoid selecting steps that are wrong or dangerous.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Select ALL correct remediation steps (order matters in real life — select carefully)</div>
+      <div class="checklist" id="p4-steps"></div>
+      <div class="action-row">
+        <button class="btn btn-accent" onclick="p4Submit()">Submit Remediation Plan</button>
+        <button class="btn btn-ghost" onclick="showHint(4)">Hint (−25 pts)</button>
+        <span class="sel-info" id="p4-sel">Select all appropriate actions.</span>
+      </div>
+      <div id="p4-hint"></div>
+      <div id="p4-result"></div>
+      <div class="next-banner" id="p4-next">
+        <div><div class="next-text">Remediation plan approved.</div><div class="next-sub">Final part unlocked: Write the incident response report.</div></div>
+        <button class="btn btn-blue" onclick="goTo(5)">Continue to Part 5 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       PART 5 — Incident Response Report
+  ════════════════════════════════════════════ -->
+  <div id="part-5" style="display:none;">
+    <div class="part-header">
+      <span class="part-tag tag-purple">Part 5 of 5 &nbsp;·&nbsp; 🔴 Advanced</span>
+      <div class="part-title">Write the Incident Response Report</div>
+      <div class="part-desc">The final step. Using everything you've uncovered across Parts 1–4, complete the official incident response report. Fill in each field accurately — your report must include the affected system, attack vector, IOCs, and remediation steps taken.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Incident Response Report — CORP-NET — 2025-03-13</div>
+      <div class="ir-template">
+        <div style="color:var(--text3);margin-bottom:6px;">Complete each field below. Use the intel gathered across all 5 parts.</div>
+        <div style="margin-bottom:4px;"><span style="color:var(--accent2);">AFFECTED HOST:</span> <span class="ir-field">[system name + IP]</span></div>
+        <div style="margin-bottom:4px;"><span style="color:var(--accent2);">ATTACK TYPE:</span> <span class="ir-field">[classification]</span></div>
+        <div style="margin-bottom:4px;"><span style="color:var(--accent2);">FIRST INDICATOR:</span> <span class="ir-field">[timestamp + event]</span></div>
+        <div style="margin-bottom:4px;"><span style="color:var(--accent2);">IOCs:</span> <span class="ir-field">[list all external IPs and anomalous events]</span></div>
+        <div style="margin-bottom:4px;"><span style="color:var(--accent2);">REMEDIATION:</span> <span class="ir-field">[steps taken]</span></div>
+        <div><span style="color:var(--accent2);">PREVENTIVE MEASURES:</span> <span class="ir-field">[long-term fixes]</span></div>
+      </div>
+      <textarea class="ir-textarea" id="p5-report" placeholder="AFFECTED HOST: DNS-SERVER (10.0.0.53)&#10;ATTACK TYPE: ...&#10;FIRST INDICATOR: ...&#10;IOCs: ...&#10;REMEDIATION: ...&#10;PREVENTIVE MEASURES: ..."></textarea>
+      <div style="margin-top:10px;font-size:12px;color:var(--text3);font-family:var(--font);">Minimum 6 lines required. Your report is evaluated for completeness, accuracy, and professional detail.</div>
+      <div class="action-row" style="margin-top:12px;">
+        <button class="btn btn-accent" onclick="p5Submit()">Submit Final Report</button>
+        <button class="btn btn-ghost" onclick="showHint(5)">Hint (−25 pts)</button>
+      </div>
+      <div id="p5-hint"></div>
+      <div id="p5-result"></div>
+      <div class="next-banner" id="p5-next">
+        <div><div class="next-text">Module 1 complete!</div><div class="next-sub">View your final score and earned badges.</div></div>
+        <button class="btn btn-accent" onclick="showComplete()">View Results →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       COMPLETION SCREEN
+  ════════════════════════════════════════════ -->
+  <div class="complete-screen" id="complete-screen">
+    <div class="complete-icon">🏆</div>
+    <div class="complete-title">// MODULE_1 COMPLETE</div>
+    <div class="complete-sub">You've completed the Network Threat Analysis module.<br>Your skills have been logged to your Cyber Study Group profile.</div>
+    <div class="score-final" id="final-score">0</div>
+    <div class="score-max">out of 600 points</div>
+    <div class="badges-row" id="badges-row"></div>
+    <button class="btn btn-accent" onclick="resetAll()" style="margin-right:10px;">Retry Module</button>
+    <button class="btn btn-ghost" onclick="window.scrollTo(0,0)">Back to Top</button>
+  </div>
+
+</main>
+
+<script>
+/* ══════════════ STATE ══════════════ */
+let currentPart = 1;
+let totalScore  = 0;
+let timerVal    = 300;
+let timerInt    = null;
+let hintUsed    = {1:false,2:false,3:false,4:false,5:false};
+let partDone    = {1:false,2:false,3:false,4:false,5:false};
+let p1Choice    = null;
+let p2Order     = [];
+let p3AttackChoice = null;
+let p3IocChecked   = new Set();
+let p4Checked      = new Set();
+
+/* ══════════════ LOG DATA ══════════════ */
+const LOGS = [
+  {ts:'02:41:03',host:'FIREWALL',hc:'hc-fw', lv:'INFO',msg:'Outbound HTTPS allowed: 10.0.2.14 → 93.184.216.34:443',bad:false},
+  {ts:'02:41:17',host:'AUTH-SRV',hc:'hc-auth',lv:'INFO',msg:'User jdoe authenticated via LDAP (10.0.2.14)',bad:false},
+  {ts:'02:41:55',host:'DNS-SRV', hc:'hc-dns', lv:'INFO',msg:'Query: corp-portal.internal → 10.0.1.20 (TTL 300)',bad:false},
+  {ts:'02:42:08',host:'DB-SRV',  hc:'hc-db',  lv:'INFO',msg:'SELECT executed by app_user @ 10.0.1.20 (12ms)',bad:false},
+  {ts:'02:42:34',host:'DNS-SRV', hc:'hc-dns', lv:'WARN',msg:'Unexpected query spike: 847 req/min (baseline: 120)',bad:true},
+  {ts:'02:42:51',host:'FIREWALL',hc:'hc-fw',  lv:'INFO',msg:'DNS response forwarded to 10.0.2.31',bad:false},
+  {ts:'02:43:02',host:'DNS-SRV', hc:'hc-dns', lv:'WARN',msg:'Cache entry overwritten: bank.corp.com → 185.220.101.5 (external!)',bad:true},
+  {ts:'02:43:09',host:'AUTH-SRV',hc:'hc-auth',lv:'INFO',msg:'Token issued: svc-account-02 (10.0.1.44)',bad:false},
+  {ts:'02:43:22',host:'DNS-SRV', hc:'hc-dns', lv:'CRIT',msg:'FORGED RESPONSE: A record payroll.corp.com → 45.33.32.156',bad:true},
+  {ts:'02:43:29',host:'FIREWALL',hc:'hc-fw',  lv:'WARN',msg:'Unusual outbound: 10.0.2.31 → 45.33.32.156:80 (new dest)',bad:false},
+  {ts:'02:43:41',host:'DNS-SRV', hc:'hc-dns', lv:'CRIT',msg:'Cache poisoning confirmed: 14 records modified in 38s',bad:true},
+  {ts:'02:43:55',host:'DB-SRV',  hc:'hc-db',  lv:'INFO',msg:'SELECT on employees.salary by app_user (normal schedule)',bad:false},
+  {ts:'02:44:12',host:'DNS-SRV', hc:'hc-dns', lv:'CRIT',msg:'DNSSEC validation FAILED for corp.com — signature mismatch',bad:true},
+  {ts:'02:44:30',host:'FIREWALL',hc:'hc-fw',  lv:'INFO',msg:'Blocked: 10.0.3.2 → 10.0.0.53:53 (policy: DNS-restrict)',bad:false},
+  {ts:'02:44:47',host:'DNS-SRV', hc:'hc-dns', lv:'CRIT',msg:'Zone transfer attempt from unknown peer 198.51.100.7',bad:true},
+  {ts:'02:45:03',host:'DB-SRV',  hc:'hc-db',  lv:'INFO',msg:'Connection pool at 42% — nominal',bad:false},
+  {ts:'02:45:18',host:'AUTH-SRV',hc:'hc-auth',lv:'INFO',msg:'Password reset: msmith (initiated by user)',bad:false},
+];
+
+/* ══════════════ PART 2 DATA ══════════════ */
+const TL_EVENTS = [
+  {id:'e1',time:'02:42:34',event:'Query spike detected',detail:'DNS-SRV receives 847 req/min vs baseline of 120 — attacker flooding the resolver with forged responses.',correct:1},
+  {id:'e2',time:'02:43:02',event:'Cache record overwritten',detail:'bank.corp.com cache entry replaced with external IP 185.220.101.5 — first successful poisoning.',correct:2},
+  {id:'e3',time:'02:43:22',event:'Forged A record confirmed',detail:'SIEM detects forged response: payroll.corp.com now resolves to attacker-controlled 45.33.32.156.',correct:3},
+  {id:'e4',time:'02:43:41',event:'Mass cache modification',detail:'14 internal DNS records overwritten in 38 seconds — full cache poisoning confirmed.',correct:4},
+  {id:'e5',time:'02:44:47',event:'Zone transfer attempted',detail:'Unknown external host 198.51.100.7 attempts full zone transfer — attacker seeking all DNS records.',correct:5},
+];
+
+/* ══════════════ PART 3 DATA ══════════════ */
+const IOC_LIST = [
+  {id:'ioc1',text:'External IP 185.220.101.5 found in internal DNS cache for bank.corp.com',correct:true},
+  {id:'ioc2',text:'External IP 45.33.32.156 — forged A record for payroll.corp.com',correct:true},
+  {id:'ioc3',text:'Unauthorized zone transfer attempt from 198.51.100.7',correct:true},
+  {id:'ioc4',text:'DNS query spike: 847 req/min (7x above baseline)',correct:true},
+  {id:'ioc5',text:'DNSSEC signature mismatch on corp.com zone',correct:true},
+  {id:'ioc6',text:'AUTH-SERVER LDAP bind from 10.0.2.31',correct:false},
+  {id:'ioc7',text:'DB-SERVER SELECT query on employees.salary table',correct:false},
+  {id:'ioc8',text:'FIREWALL outbound HTTPS to 93.184.216.34',correct:false},
+];
+
+/* ══════════════ PART 4 DATA ══════════════ */
+const REMEDIATION = [
+  {id:'r1',text:'Isolate DNS-SERVER from the network immediately to stop ongoing cache poisoning',correct:true},
+  {id:'r2',text:'Flush the compromised DNS cache and restore records from last known-good backup',correct:true},
+  {id:'r3',text:'Enable DNSSEC on all internal DNS zones to cryptographically validate responses',correct:true},
+  {id:'r4',text:'Block external IPs 185.220.101.5, 45.33.32.156, and 198.51.100.7 at the firewall',correct:true},
+  {id:'r5',text:'Notify all internal clients to flush their local DNS caches',correct:true},
+  {id:'r6',text:'Disable the firewall temporarily to re-route all traffic and assess the damage',correct:false},
+  {id:'r7',text:'Immediately reset all user passwords across the organization',correct:false},
+  {id:'r8',text:'Shut down DB-SERVER as it may have received connections from the poisoned clients',correct:false},
+];
+
+/* ══════════════ TIMER ══════════════ */
+function startTimer(){
+  timerInt = setInterval(()=>{
+    timerVal--;
+    const m = String(Math.floor(timerVal/60)).padStart(2,'0');
+    const s = String(timerVal%60).padStart(2,'0');
+    const el = document.getElementById('timer');
+    el.textContent = m+':'+s;
+    if(timerVal<=60) el.className='timer-display danger';
+    else if(timerVal<=120) el.className='timer-display warn';
+    if(timerVal<=0){ clearInterval(timerInt); el.textContent='00:00'; }
+  },1000);
+}
+
+function addScore(n){ totalScore+=n; document.getElementById('score').textContent=totalScore; }
+
+/* ══════════════ LOG RENDER ══════════════ */
+function renderLogs(){
+  const b = document.getElementById('p1-log');
+  b.innerHTML = LOGS.map((l,i)=>{
+    const lv = l.lv==='CRIT'?'lv-crit':l.lv==='WARN'?'lv-warn':'lv-info';
+    return `<div class="log-row${l.bad?' highlighted':''}" id="lr${i}" onclick="inspectLog(${i})">
+      <span class="l-ts">${l.ts}</span>
+      <span class="l-host ${l.hc}">${l.host.padEnd(9,' ')}</span>
+      <span class="l-lvl ${lv}">${l.lv}</span>
+      <span class="l-msg${l.bad?' bad':''}">${l.msg}</span>
+    </div>`;
+  }).join('');
+}
+
+function inspectLog(i){
+  document.querySelectorAll('.log-row').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('lr'+i).classList.add('selected');
+  const l=LOGS[i], ins=document.getElementById('p1-inspector');
+  ins.innerHTML = l.bad
+    ? `<span style="color:var(--red);">⚠ ANOMALY</span> &nbsp;Host: <strong>${l.host}</strong> &nbsp;|&nbsp; ${l.ts} &nbsp;|&nbsp; ${l.msg}`
+    : `Host: <strong>${l.host}</strong> &nbsp;|&nbsp; ${l.ts} &nbsp;|&nbsp; ${l.msg} &nbsp;<em style="color:var(--text3)">(nominal)</em>`;
+  ins.style.borderColor = l.bad ? 'var(--red)' : 'var(--border2)';
+}
+
+/* ══════════════ PART 1 ══════════════ */
+function p1Select(v){
+  p1Choice=v;
+  ['p1-o1','p1-o2','p1-o3','p1-o4'].forEach(id=>document.getElementById(id).classList.remove('selected'));
+  const map={dns:'p1-o1',auth:'p1-o2',fw:'p1-o3',db:'p1-o4'};
+  document.getElementById(map[v]).classList.add('selected');
+  const names={dns:'DNS-SERVER (10.0.0.53)',auth:'AUTH-SERVER (10.0.0.12)',fw:'FIREWALL (10.0.0.1)',db:'DB-SERVER (10.0.0.88)'};
+  document.getElementById('p1-sel').textContent='Selected: '+names[v];
+}
+
+function p1Submit(){
+  if(!p1Choice){alert('Select a host first.');return;}
+  if(partDone[1])return;
+  partDone[1]=true;
+  clearInterval(timerInt);
+  const correct = p1Choice==='dns';
+  const map={dns:'p1-o1',auth:'p1-o2',fw:'p1-o3',db:'p1-o4'};
+  ['dns','auth','fw','db'].forEach(k=>{
+    const el=document.getElementById(map[k]);
+    el.classList.remove('selected');
+    if(k==='dns') el.classList.add('correct');
+    else if(k===p1Choice&&!correct) el.classList.add('wrong');
+  });
+  if(correct){
+    addScore(hintUsed[1]?75:100);
+    document.getElementById('p1-result').innerHTML=`<div class="result result-ok"><div class="result-title">✓ Correct — DNS-SERVER identified</div><div class="result-body">DNS-SERVER (10.0.0.53) generated <strong>5 CRIT/WARN events</strong> between 02:42 and 02:44: a 7x query spike, two cache overwrites with external IPs, a DNSSEC signature failure, and an unauthorized zone transfer attempt. All other hosts logged only normal INFO-level activity.</div></div>`;
+    document.getElementById('p1-next').classList.add('show');
+  } else {
+    document.getElementById('p1-result').innerHTML=`<div class="result result-fail"><div class="result-title">✗ Incorrect</div><div class="result-body">The correct answer is <strong>DNS-SERVER (10.0.0.53)</strong>. Filter the logs by severity — CRIT events always indicate the starting point. DNS-SRV generated all 5 anomalous entries. Retry to continue.</div></div>`;
+    partDone[1]=false;
+    startTimer();
+  }
+}
+
+/* ══════════════ PART 2 ══════════════ */
+function renderTimeline(){
+  const shuffled=[...TL_EVENTS].sort(()=>Math.random()-.5);
+  const wrap=document.getElementById('p2-timeline');
+  wrap.innerHTML=shuffled.map(e=>`
+    <div class="tl-item" id="tl-${e.id}" onclick="p2SelectEvent('${e.id}')">
+      <div class="tl-time">${e.time}</div>
+      <div class="tl-body">
+        <div class="tl-event">${e.event}</div>
+        <div class="tl-detail">${e.detail}</div>
+      </div>
+      <div style="font-size:12px;font-family:var(--font);color:var(--text3);flex-shrink:0;padding-top:3px;" id="tl-rank-${e.id}">—</div>
+    </div>
+  `).join('');
+}
+
+function p2SelectEvent(id){
+  if(partDone[2])return;
+  const alreadyIdx = p2Order.indexOf(id);
+  if(alreadyIdx>=0){
+    p2Order.splice(alreadyIdx,1);
+    document.getElementById('tl-'+id).classList.remove('sel');
+    document.getElementById('tl-rank-'+id).textContent='—';
+    refreshP2Ranks();
+    return;
+  }
+  if(p2Order.length>=5)return;
+  p2Order.push(id);
+  document.getElementById('tl-'+id).classList.add('sel');
+  refreshP2Ranks();
+  document.getElementById('p2-sel').textContent=`Selected ${p2Order.length}/5 events.`;
+}
+
+function refreshP2Ranks(){
+  p2Order.forEach((id,i)=>{ document.getElementById('tl-rank-'+id).textContent='#'+(i+1); });
+}
+
+function p2Submit(){
+  if(p2Order.length<5){alert('Select all 5 events in order.');return;}
+  if(partDone[2])return;
+  const correct = p2Order.every((id,i)=>{ const e=TL_EVENTS.find(x=>x.id===id); return e&&e.correct===i+1; });
+  partDone[2]=true;
+  TL_EVENTS.forEach(e=>{
+    const el=document.getElementById('tl-'+e.id);
+    const myPos=p2Order.indexOf(e.id)+1;
+    if(myPos===e.correct) el.classList.add('correct-tl');
+    else if(myPos>0) el.classList.add('wrong-tl');
+  });
+  if(correct){
+    addScore(hintUsed[2]?75:100);
+    document.getElementById('p2-result').innerHTML=`<div class="result result-ok"><div class="result-title">✓ Timeline confirmed</div><div class="result-body">Correct sequence: <strong>Query spike → Cache overwrite → Forged A record → Mass modification → Zone transfer attempt</strong>. This escalating pattern is characteristic of a staged cache poisoning campaign — attackers first flood, then overwrite, then attempt full zone extraction.</div></div>`;
+    document.getElementById('p2-next').classList.add('show');
+  } else {
+    document.getElementById('p2-result').innerHTML=`<div class="result result-fail"><div class="result-title">✗ Incorrect sequence</div><div class="result-body">Review the timestamps carefully. The correct order follows the timestamps: 02:42:34 → 02:43:02 → 02:43:22 → 02:43:41 → 02:44:47. Reset your selections and try again.</div></div>`;
+    partDone[2]=false; p2Order=[];
+    document.querySelectorAll('.tl-item').forEach(el=>{el.classList.remove('sel','correct-tl','wrong-tl');});
+    document.querySelectorAll('[id^="tl-rank-"]').forEach(el=>{el.textContent='—';});
+    document.getElementById('p2-sel').textContent='Select events in order (click 1st → 5th).';
+  }
+}
+
+/* ══════════════ PART 3 ══════════════ */
+function renderIocs(){
+  const shuffled=[...IOC_LIST].sort(()=>Math.random()-.5);
+  document.getElementById('p3-iocs').innerHTML=shuffled.map(ioc=>`
+    <div class="check-item" id="ci-${ioc.id}" onclick="p3ToggleIoc('${ioc.id}')">
+      <div class="check-box" id="cb-${ioc.id}"></div>
+      <div class="check-text">${ioc.text}</div>
+    </div>
+  `).join('');
+}
+
+function p3Select(v){
+  p3AttackChoice=v;
+  ['a','b','c','d'].forEach(k=>document.getElementById('p3-o'+(k.charCodeAt(0)-96)).classList.remove('selected'));
+  document.getElementById('p3-o'+(v.charCodeAt(0)-96)).classList.add('selected');
+}
+
+function p3ToggleIoc(id){
+  if(partDone[3])return;
+  if(p3IocChecked.has(id)){
+    p3IocChecked.delete(id);
+    document.getElementById('ci-'+id).classList.remove('checked');
+    document.getElementById('cb-'+id).textContent='';
+  } else {
+    p3IocChecked.add(id);
+    document.getElementById('ci-'+id).classList.add('checked');
+    document.getElementById('cb-'+id).textContent='✓';
+  }
+  document.getElementById('p3-sel').textContent=`Attack type: ${p3AttackChoice?'selected':'needed'} | IOCs: ${p3IocChecked.size} selected`;
+}
+
+function p3Submit(){
+  if(!p3AttackChoice){alert('Select the attack type first.');return;}
+  if(p3IocChecked.size===0){alert('Select at least one IOC.');return;}
+  if(partDone[3])return;
+  const correctAttack = p3AttackChoice==='b';
+  const correctIocs = IOC_LIST.filter(i=>i.correct).map(i=>i.id);
+  const wrongIocs   = IOC_LIST.filter(i=>!i.correct).map(i=>i.id);
+  const allCorrectSelected = correctIocs.every(id=>p3IocChecked.has(id));
+  const noWrongSelected    = wrongIocs.every(id=>!p3IocChecked.has(id));
+  const correct = correctAttack && allCorrectSelected && noWrongSelected;
+
+  if(correctAttack) document.getElementById('p3-o2').classList.add('correct');
+  else{ document.getElementById('p3-o'+(p3AttackChoice.charCodeAt(0)-96)).classList.add('wrong'); document.getElementById('p3-o2').classList.add('correct'); }
+
+  IOC_LIST.forEach(ioc=>{
+    const ci=document.getElementById('ci-'+ioc.id);
+    const cb=document.getElementById('cb-'+ioc.id);
+    if(ioc.correct&&p3IocChecked.has(ioc.id)){ci.classList.add('checked');}
+    else if(!ioc.correct&&p3IocChecked.has(ioc.id)){ci.classList.remove('checked');ci.classList.add('wrong-check');cb.textContent='✗';}
+    else if(ioc.correct&&!p3IocChecked.has(ioc.id)){ci.classList.add('wrong-check');}
+  });
+
+  partDone[3]=true;
+  if(correct){
+    addScore(hintUsed[3]?75:100);
+    document.getElementById('p3-result').innerHTML=`<div class="result result-ok"><div class="result-title">✓ Attack classified. All IOCs identified.</div><div class="result-body">Correct: <strong>DNS Cache Poisoning</strong> with 5 confirmed IOCs — two malicious external IPs in internal cache, unauthorized zone transfer source, query spike 7x baseline, and DNSSEC validation failure. These form the basis of your incident report.</div></div>`;
+    document.getElementById('p3-next').classList.add('show');
+  } else {
+    document.getElementById('p3-result').innerHTML=`<div class="result result-fail"><div class="result-title">✗ Incomplete analysis</div><div class="result-body">Review highlighted items. All 5 true IOCs must be selected, and no false positives. The AUTH and DB server events are normal activity — selecting them would send your SOC team on a false hunt. Reset and retry.</div></div>`;
+    partDone[3]=false; p3AttackChoice=null; p3IocChecked.clear();
+    setTimeout(()=>{renderIocs();['a','b','c','d'].forEach(k=>document.getElementById('p3-o'+(k.charCodeAt(0)-96)).classList.remove('selected','correct','wrong'));},1500);
+  }
+}
+
+/* ══════════════ PART 4 ══════════════ */
+function renderRemediation(){
+  const shuffled=[...REMEDIATION].sort(()=>Math.random()-.5);
+  document.getElementById('p4-steps').innerHTML=shuffled.map(r=>`
+    <div class="check-item" id="ri-${r.id}" onclick="p4Toggle('${r.id}')">
+      <div class="check-box" id="rb-${r.id}"></div>
+      <div class="check-text">${r.text}</div>
+    </div>
+  `).join('');
+}
+
+function p4Toggle(id){
+  if(partDone[4])return;
+  if(p4Checked.has(id)){
+    p4Checked.delete(id);
+    document.getElementById('ri-'+id).classList.remove('checked');
+    document.getElementById('rb-'+id).textContent='';
+  } else {
+    p4Checked.add(id);
+    document.getElementById('ri-'+id).classList.add('checked');
+    document.getElementById('rb-'+id).textContent='✓';
+  }
+  document.getElementById('p4-sel').textContent=`${p4Checked.size} steps selected.`;
+}
+
+function p4Submit(){
+  if(p4Checked.size===0){alert('Select at least one remediation step.');return;}
+  if(partDone[4])return;
+  const correctIds = REMEDIATION.filter(r=>r.correct).map(r=>r.id);
+  const wrongIds   = REMEDIATION.filter(r=>!r.correct).map(r=>r.id);
+  const allCorrect = correctIds.every(id=>p4Checked.has(id));
+  const noWrong    = wrongIds.every(id=>!p4Checked.has(id));
+  const correct    = allCorrect && noWrong;
+
+  REMEDIATION.forEach(r=>{
+    const ri=document.getElementById('ri-'+r.id);
+    const rb=document.getElementById('rb-'+r.id);
+    if(r.correct&&p4Checked.has(r.id)){ri.classList.add('checked');}
+    else if(!r.correct&&p4Checked.has(r.id)){ri.classList.remove('checked');ri.classList.add('wrong-check');rb.textContent='✗';}
+    else if(r.correct&&!p4Checked.has(r.id)){ri.classList.add('wrong-check');}
+  });
+
+  partDone[4]=true;
+  if(correct){
+    addScore(hintUsed[4]?75:100);
+    document.getElementById('p4-result').innerHTML=`<div class="result result-ok"><div class="result-title">✓ Remediation plan approved</div><div class="result-body">All 5 correct steps selected. Key insight: <strong>Disabling the firewall</strong> would expose the entire network; <strong>mass password resets</strong> are premature without evidence of credential compromise; <strong>shutting down DB-SERVER</strong> creates unnecessary downtime for an unaffected system.</div></div>`;
+    document.getElementById('p4-next').classList.add('show');
+  } else {
+    document.getElementById('p4-result').innerHTML=`<div class="result result-fail"><div class="result-title">✗ Flawed remediation plan</div><div class="result-body">One or more incorrect steps selected, or correct steps missed. Review highlighted items — red steps would cause harm or disruption without addressing the actual threat. Reset and try again.</div></div>`;
+    partDone[4]=false; p4Checked.clear();
+    setTimeout(()=>{renderRemediation(); document.getElementById('p4-sel').textContent='0 steps selected.';},1500);
+  }
+}
+
+/* ══════════════ PART 5 ══════════════ */
+function p5Submit(){
+  if(partDone[5])return;
+  const report = document.getElementById('p5-report').value.trim();
+  const lines = report.split('\n').filter(l=>l.trim().length>0);
+  const hasHost    = /dns.*(server|srv)|10\.0\.0\.53/i.test(report);
+  const hasAttack  = /cache poison|dns spoof|dns poison/i.test(report);
+  const hasIP      = /185\.220|45\.33|198\.51/i.test(report);
+  const hasRemediat= /isolat|flush|dnssec|backup|block/i.test(report);
+
+  if(lines.length<4){
+    document.getElementById('p5-result').innerHTML=`<div class="result result-fail"><div class="result-title">✗ Report too brief</div><div class="result-body">Your report needs at least 6 complete lines covering all required fields. Use the template above as a guide.</div></div>`;
+    return;
+  }
+  const score5 = (hasHost?1:0)+(hasAttack?1:0)+(hasIP?1:0)+(hasRemediat?1:0);
+  partDone[5]=true;
+  if(score5>=3){
+    addScore(hintUsed[5]?150:200);
+    document.getElementById('p5-result').innerHTML=`<div class="result result-ok"><div class="result-title">✓ Report accepted — ${score5}/4 criteria met</div><div class="result-body">Your incident response report includes the key elements: affected host, attack classification, IOCs, and remediation steps. In a real SOC environment, this report would be escalated to management and used to brief the IR team.</div></div>`;
+    document.getElementById('p5-next').classList.add('show');
+  } else {
+    document.getElementById('p5-result').innerHTML=`<div class="result result-fail"><div class="result-title">✗ Report incomplete — ${score5}/4 criteria</div><div class="result-body">Your report is missing key fields. Ensure you include: the affected host + IP, the attack classification, at least one external malicious IP (IOC), and specific remediation steps taken. Revise and resubmit.</div></div>`;
+    partDone[5]=false;
+  }
+}
+
+/* ══════════════ HINTS ══════════════ */
+const HINTS = {
+  1:'Look at severity levels first. Filter mentally for WARN and CRIT entries — which host generates all of them? Check whether any IP addresses in the log messages belong outside the 10.0.x.x internal range.',
+  2:'The timestamps tell the story. Sort by time: what had to happen first for the later events to be possible? A spike precedes successful cache modification.',
+  3:'DNS Cache Poisoning redirects traffic by corrupting resolver records — not by amplifying or tunneling. For IOCs: anything with an external IP inside an internal zone record is suspicious. Normal AUTH and DB activity during the window is coincidental.',
+  4:'The golden rule: take the minimum action needed to stop the threat without causing collateral damage. Isolate the compromised system, restore clean state, harden the config, and block the known-bad IPs. Avoid actions that affect uncompromised systems.',
+  5:'Your report should answer: What was hit? How was it attacked? What evidence do we have? What did we do about it? What stops it from happening again? Use the exact system names, IPs, and timestamps from Parts 1–4.',
+};
+
+function showHint(part){
+  if(hintUsed[part]||partDone[part])return;
+  hintUsed[part]=true;
+  document.getElementById('p'+part+'-hint').innerHTML=`<div class="hint-box"><strong style="color:var(--yellow);">HINT:</strong> ${HINTS[part]}</div>`;
+}
+
+/* ══════════════ NAVIGATION ══════════════ */
+function tryNav(n){
+  if(n===1||partDone[n-1]) goTo(n);
+}
+
+function goTo(n){
+  for(let i=1;i<=5;i++) document.getElementById('part-'+i).style.display=i===n?'block':'none';
+  currentPart=n;
+  document.getElementById('part-hud').textContent=n+'/5';
+  updateProgress();
+  // reset timer for new part
+  clearInterval(timerInt);
+  timerVal=300+(n-1)*60; // each part gets a bit more time
+  document.getElementById('timer').className='timer-display';
+  startTimer();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function updateProgress(){
+  for(let i=1;i<=5;i++){
+    const dot=document.getElementById('dot-'+i);
+    const nm =document.getElementById('pname-'+i);
+    dot.classList.remove('active','done','locked');
+    nm.classList.remove('active','done');
+    if(partDone[i]){dot.classList.add('done');dot.textContent='';nm.classList.add('done');}
+    else if(i===currentPart){dot.classList.add('active');dot.textContent=i;nm.classList.add('active');}
+    else if(i<currentPart||partDone[i-1]){dot.classList.remove('locked');dot.textContent=i;}
+    else{dot.classList.add('locked');dot.textContent=i;}
+    if(i<5) document.getElementById('line-'+i).classList.toggle('done',partDone[i]);
+  }
+}
+
+/* ══════════════ COMPLETE ══════════════ */
+function showComplete(){
+  for(let i=1;i<=5;i++) document.getElementById('part-'+i).style.display='none';
+  clearInterval(timerInt);
+  const cs=document.getElementById('complete-screen');
+  cs.classList.add('show');
+  document.getElementById('final-score').textContent=totalScore;
+  const badges=[];
+  if(totalScore>=500) badges.push({icon:'🎯',label:'Accuracy',name:'Sharpshooter'});
+  if(!Object.values(hintUsed).some(v=>v)) badges.push({icon:'🧠',label:'No hints used',name:'Unaided'});
+  if(partDone[1]&&partDone[2]&&partDone[3]&&partDone[4]&&partDone[5]) badges.push({icon:'🏅',label:'Completion',name:'Full Clear'});
+  badges.push({icon:'🔍',label:'Module 1',name:'Log Analyst'});
+  document.getElementById('badges-row').innerHTML=badges.map(b=>`
+    <div class="earn-badge">
+      <div class="earn-icon">${b.icon}</div>
+      <div class="earn-label">${b.label}</div>
+      <div class="earn-name">${b.name}</div>
+    </div>
+  `).join('');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ══════════════ RESET ══════════════ */
+function resetAll(){
+  location.reload();
+}
+
+/* ══════════════ INIT ══════════════ */
+renderLogs();
+renderTimeline();
+renderIocs();
+renderRemediation();
+startTimer();
+updateProgress();
+</script>
+</body>
+</html>
